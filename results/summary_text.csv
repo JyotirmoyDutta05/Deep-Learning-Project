@@ -1,0 +1,4 @@
+Model,Params,Test acc (IMDB),Best test acc,Train time (s),Saturated units (%)
+RNN,665090,0.641,0.641,36.8,15.7
+LSTM,739586,0.757,0.757,8.2,0.1
+GRU,714754,0.819,0.819,87.7,0.3
