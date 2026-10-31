@@ -1,0 +1,22 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Testing & Cache
+.pytest_cache/
+.ipynb_checkpoints/
+
+# macOS / OS metadata
+.DS_Store
+Thumbs.db
+
+# Large raw archive data dumps (>100MB)
+data/archive/

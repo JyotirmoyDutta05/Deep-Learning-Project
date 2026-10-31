@@ -1,4 +1,0 @@
-model,accuracy,precision,recall,f1
-TF-IDF word,0.5556,0.5556,1.0,0.7143
-TF-IDF char,0.5531,0.5545,0.9956,0.7122
-SIE (proposed),0.9975,1.0,0.9956,0.9978

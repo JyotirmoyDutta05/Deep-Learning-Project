@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PhishGuard AI</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{--bg:#e9edf1;--panel:#fafbfc;--ink:#18222d;--muted:#5b6978;--line:#cdd5dd;--fraud:200,16,46;--safe:31,111,178;--mem:14,138,128}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "IBM Plex Sans",system-ui,sans-serif}
+header{padding:18px 28px;border-bottom:1px solid var(--line);background:var(--panel);display:flex;gap:16px;align-items:baseline;flex-wrap:wrap}
+h1{margin:0;font-size:20px;font-weight:600}header p{margin:0;color:var(--muted)}
+main{display:grid;grid-template-columns:minmax(300px,2fr) 3fr;gap:20px;padding:20px 28px;max-width:1280px;margin:auto}
+@media(max-width:900px){main{grid-template-columns:1fr;padding:14px}}
+section{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:18px}
+h2{margin:0 0 10px;font-size:16px;font-weight:600}
+.seg{display:flex;gap:0;margin-bottom:12px}
+.seg label{flex:1;text-align:center;padding:7px 4px;border:1px solid var(--line);cursor:pointer;font-size:14px}
+.seg label:first-child{border-radius:5px 0 0 5px}.seg label:last-child{border-radius:0 5px 5px 0}
+.seg label{position:relative}.seg input{position:absolute;opacity:0}.seg input:checked+span{font-weight:600}
+.seg label:has(input:checked){background:var(--ink);color:#fff}.seg label:has(input:focus-visible){outline:2px solid rgb(var(--safe));outline-offset:2px}
+textarea{width:100%;min-height:220px;resize:vertical;padding:10px;border:1px solid var(--line);border-radius:5px;font:14px/1.5 "IBM Plex Mono",monospace;background:#fff;color:var(--ink)}
+button{font:inherit;border-radius:5px;border:1px solid var(--ink);padding:8px 14px;cursor:pointer;background:var(--panel);color:var(--ink)}
+button.primary{background:var(--ink);color:#fff}button:focus-visible,.tk:focus-visible{outline:2px solid rgb(var(--safe));outline-offset:2px}
+button:disabled{opacity:.5;cursor:wait}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.row.small button{font-size:13px;padding:5px 10px;border-color:var(--line)}
+.hint{color:var(--muted);font-size:13px;margin:12px 0 0}
+#verdict{display:flex;gap:20px;align-items:center;flex-wrap:wrap;padding-bottom:14px;border-bottom:1px solid var(--line)}
+#flag{font-size:22px;font-weight:600}.fraud{color:rgb(var(--fraud))}.legit{color:rgb(var(--safe))}
+#score{font:500 40px/1 "IBM Plex Mono",monospace}
+.meter{flex:1;min-width:160px}.bar{height:10px;border-radius:5px;background:#dde3e9;position:relative}
+.bar i{display:block;height:100%;border-radius:5px;background:rgb(var(--fraud))}.bar b{position:absolute;top:-4px;width:2px;height:18px;background:var(--ink)}
+.meta{color:var(--muted);font-size:13px;margin-top:6px}
+#note{margin:14px 0;padding:10px 12px;border-left:3px solid rgb(var(--mem));background:#eef6f6}
+.chips span{display:inline-block;margin:0 6px 6px 0;padding:2px 9px;border:1px solid var(--line);border-radius:12px;font-size:13px}
+.modes{display:flex;gap:14px;flex-wrap:wrap;margin:6px 0 10px;font-size:14px}.modes label{cursor:pointer}
+#heat{font:13px/2.1 "IBM Plex Mono",monospace;padding:12px;border:1px solid var(--line);border-radius:5px;background:#fff;max-height:340px;overflow:auto}
+.tk{display:inline-block;padding:0 3px;margin:0 1px;border-radius:3px;cursor:default}
+.tk.sel{outline:2px solid var(--ink)}
+.legend{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin-top:8px}
+.legend i{flex:0 0 140px;height:8px;border-radius:4px}
+#detail{margin-top:10px;min-height:44px;font:13px "IBM Plex Mono",monospace;color:var(--muted)}
+#err{color:rgb(var(--fraud));margin-top:10px}[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<header><h1>PhishGuard AI</h1><p>Paste a message. See the verdict, and which words the network kept in memory to reach it.</p></header>
+<main>
+<section aria-labelledby="in">
+  <h2 id="in">Message to check</h2>
+  <div class="seg" role="radiogroup" aria-label="Message type">
+    <label><input type="radio" name="ch" value="email"><span>Email</span></label>
+    <label><input type="radio" name="ch" value="sms" checked><span>SMS</span></label>
+    <label><input type="radio" name="ch" value="transaction"><span>Transaction</span></label>
+  </div>
+  <textarea id="text" aria-label="Message text" placeholder="Paste the email body, SMS or transaction narrative here"></textarea>
+  <div class="row"><button class="primary" id="go">Check message</button><button id="clear">Clear</button></div>
+  <p class="hint">Try an example</p>
+  <div class="row small" id="ex"></div>
+  <p class="hint">Messages are scored by your own server and are not stored or logged.</p>
+</section>
+<section aria-live="polite" aria-labelledby="out">
+  <h2 id="out">Result</h2>
+  <p id="empty" class="hint">Nothing checked yet. Paste a message and choose Check message.</p>
+  <div id="res" hidden>
+    <div id="verdict">
+      <div><div id="flag"></div><div class="meta" id="band"></div></div>
+      <div id="score"></div>
+      <div class="meter"><div class="bar"><i id="fill"></i><b id="thr"></b></div><div class="meta" id="meta"></div></div>
+    </div>
+    <div id="note"></div>
+    <div class="chips" id="chips"></div>
+    <h2>Gate heatmap</h2>
+    <div class="modes" role="radiogroup" aria-label="Heatmap layer">
+      <label><input type="radio" name="mode" value="contribution" checked> Evidence for the verdict</label>
+      <label><input type="radio" name="mode" value="write"> Input gate (what it stored)</label>
+      <label><input type="radio" name="mode" value="survival"> Memory survival (what it still held)</label>
+    </div>
+    <div id="heat" tabindex="0" aria-label="Token heatmap"></div>
+    <div class="legend" id="legend"></div>
+    <div id="detail">Hover or focus a token for its gate values.</div>
+    <div class="row"><button id="pad">Add 100 filler words</button><button id="reset" hidden>Remove filler</button></div>
+    <p class="hint">Adding filler tests whether the opening signal is still remembered after a long stretch of harmless text.</p>
+  </div>
+  <div id="err" role="alert" hidden></div>
+</section>
+</main>
+<script>
+const $=s=>document.querySelector(s);
+const EX=[
+ ["Bank SMS","sms","URGENT: Your HDFC Bank account has been suspended due to incomplete KYC. Verify now at http://hdfc-kyc-secure.example-login.com or your account will be blocked within 24 hours."],
+ ["Prize SMS","sms","Congratulations! You have won a free gift voucher worth 500. Claim your reward now by calling 09061701461. Offer expires today."],
+ ["Phishing email","email","Dear customer, we detected unusual sign-in activity on your PayPal account. For your security we have limited access. Please confirm your password and card details at www.paypal-resolution-center.net/verify immediately to avoid permanent suspension."],
+ ["Transaction","transaction","UPI/DR/PAYMENT REVERSAL DESK/URGENT chargeback pending - share OTP to refund Rs 49999 to your account immediately"],
+ ["Friendly note","sms","Hey, are you still coming for lunch tomorrow? I booked the table by the window for 1pm. Let me know if that works."]];
+const FILLER="Anyway, the weather has been lovely this week and the garden is finally coming along. We walked to the market on Saturday and picked up some fresh bread, tomatoes and a few apples for dinner.".split(" ");
+let base="",padded=false,data=null;
+EX.forEach(([n,c,t])=>{const b=document.createElement("button");b.textContent=n;b.onclick=()=>{$("#text").value=t;document.querySelector(`input[name=ch][value=${c}]`).checked=true;};$("#ex").append(b)});
+$("#clear").onclick=()=>{$("#text").value="";$("#res").hidden=true;$("#empty").hidden=false;$("#err").hidden=true};
+$("#go").onclick=()=>{base=$("#text").value;padded=false;run(base)};
+$("#pad").onclick=()=>{if(!base)return;const f=Array.from({length:100},(_,i)=>FILLER[i%FILLER.length]).join(" ");padded=true;run(base+" "+f)};
+$("#reset").onclick=()=>{padded=false;run(base)};
+document.querySelectorAll("input[name=mode]").forEach(r=>r.onchange=paint);
+async function run(text){
+  if(!text.trim()){return err("Enter a message first.")}
+  $("#err").hidden=true;$("#go").disabled=$("#pad").disabled=true;
+  try{
+    const r=await fetch("/v1/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text,channel:document.querySelector("input[name=ch]:checked").value})});
+    const j=await r.json();
+    if(!r.ok){return err(typeof j.detail==="string"?j.detail:"The message could not be checked. Check its length and try again.")}
+    data=j;show();
+  }catch(e){err("Could not reach the server. Check that it is running and try again.")}
+  finally{$("#go").disabled=$("#pad").disabled=false}
+}
+function err(m){$("#err").textContent=m;$("#err").hidden=false}
+function show(){
+  const d=data,f=d.label===1;
+  $("#empty").hidden=true;$("#res").hidden=false;$("#reset").hidden=!padded;
+  $("#flag").textContent=f?"Fraud / Malicious [1]":"Legitimate [0]";$("#flag").className=f?"fraud":"legit";
+  $("#band").textContent=`Risk level: ${d.risk_band}`;$("#score").textContent=d.risk_score.toFixed(0)+"/100";
+  $("#fill").style.width=d.risk_score+"%";$("#thr").style.left=d.threshold+"%";
+  $("#meta").textContent=`${d.n_tokens} tokens read in ${d.latency_ms} ms. Marker shows the decision line (${d.threshold.toFixed(0)}).`+(d.truncated?" Long input: only the first tokens were read.":"");
+  const m=d.memory;let n;
+  if(f&&m){const w=d.tokens[m.top_index].t;
+    n=`Strongest evidence: “${w}” (token ${m.top_index+1}). `+(m.distance>0?`The network read ${m.distance} more tokens after it and still carried about ${Math.round(m.survival*100)}% of what it stored there into the decision.`:"It sits at the very end, so nothing had to be remembered.")}
+  else if(f){n="The verdict comes from many small signals spread across the message rather than one strong token."}
+  else{n="No token pushed strongly toward fraud. Red tokens, if any, are the weak signals the network weighed and outvoted."}
+  $("#note").textContent=n;
+  const cs=$("#chips");cs.replaceChildren();
+  [...new Set(d.cues.map(c=>c.category))].forEach(c=>{const s=document.createElement("span");s.textContent=({urgency:"Urgency",credentials:"Asks for credentials",money:"Money or prize",impersonation:"Impersonation wording",link:"Contains a link"})[c];cs.append(s)});
+  paint();
+}
+function paint(){
+  const mode=document.querySelector("input[name=mode]:checked").value,T=data.tokens,heat=$("#heat");
+  heat.replaceChildren();
+  const vals=T.map(t=>t[mode]),mx=Math.max(...vals.map(Math.abs))||1;
+  T.forEach((t,i)=>{
+    const v=vals[i], s=document.createElement("span");s.className="tk";s.tabIndex=0;s.textContent=t.t;
+    if(mode==="contribution"){
+      const a=Math.abs(v/mx);
+      if(a>0.04){
+        const isFraud = v>=0;
+        s.style.background = isFraud ? `rgba(220,38,38,${(0.15+0.75*a).toFixed(2)})` : `rgba(37,99,235,${(0.15+0.75*a).toFixed(2)})`;
+        s.style.color = a>0.4 ? "#fff" : (isFraud ? "#991b1b" : "#1e40af");
+        if(a>0.6) s.style.fontWeight = "600";
+      }
+    } else if(mode==="write"){
+      if(v>0.15){
+        s.style.background = `rgba(217,119,6,${(0.15+0.75*v).toFixed(2)})`;
+        s.style.color = v>0.4 ? "#fff" : "#92400e";
+        if(v>0.6) s.style.fontWeight = "600";
+      }
+    } else {
+      if(v>0.15){
+        s.style.background = `rgba(13,148,136,${(0.15+0.75*v).toFixed(2)})`;
+        s.style.color = v>0.4 ? "#fff" : "#115e59";
+        if(v>0.6) s.style.fontWeight = "600";
+      }
+    }
+    const info=()=>{document.querySelectorAll(".tk.sel").forEach(e=>e.classList.remove("sel"));s.classList.add("sel");
+      $("#detail").textContent=`#${i+1} “${t.t}”  evidence ${t.contribution>=0?"+":""}${t.contribution.toFixed(2)} | input gate ${t.write.toFixed(2)} | keep gate ${t.keep.toFixed(2)} | survival to end ${t.survival.toFixed(2)}`};
+    s.onmouseenter=s.onfocus=info;heat.append(s);heat.append(" ");
+  });
+  $("#legend").innerHTML=mode==="contribution"
+   ?`<span>Toward legitimate</span><i style="background:linear-gradient(90deg,#2563eb,#e2e8f0,#dc2626)"></i><span>Toward fraud</span>`
+   :mode==="write"
+   ?`<span>Low write</span><i style="background:linear-gradient(90deg,#e2e8f0,#d97706)"></i><span>High write</span>`
+   :`<span>Decayed</span><i style="background:linear-gradient(90deg,#e2e8f0,#0d9488)"></i><span>High survival</span>`;
+}
+</script>
+</body>
+</html>
