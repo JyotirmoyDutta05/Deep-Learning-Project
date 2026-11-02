@@ -103,18 +103,30 @@ To solve the vanishing gradient problem, Hochreiter & Schmidhuber (1997) introdu
 ```
 
 #### The Governing Equations:
-1. **Forget Gate ($f_t$):** Controls what fraction of previous cell memory to retain:
-   $$f_t = \sigma(W_f x_t + U_f h_{t-1} + b_f)$$
-2. **Input Gate ($i_t$):** Controls what fraction of new candidate memory to write:
-   $$i_t = \sigma(W_i x_t + U_i h_{t-1} + b_i)$$
-3. **Candidate Cell State ($\tilde{c}_t$):** Generates new candidate representations:
-   $$\tilde{c}_t = \tanh(W_c x_t + U_c h_{t-1} + b_c)$$
-4. **Cell State Update ($c_t$):** Linear combination of preserved memory and new input:
-   $$c_t = f_t \odot c_{t-1} + i_t \odot \tilde{c}_t$$
-5. **Output Gate ($o_t$):** Determines which portion of the cell state to emit into hidden state:
-   $$o_t = \sigma(W_o x_t + U_o h_{t-1} + b_o)$$
-6. **Hidden State ($h_t$):**
-   $$h_t = o_t \odot \tanh(c_t)$$
+
+**1. Forget Gate ($f_t$):** Controls what fraction of previous cell memory to retain:
+
+$$f_t = \sigma(W_f x_t + U_f h_{t-1} + b_f)$$
+
+**2. Input Gate ($i_t$):** Controls what fraction of new candidate memory to write:
+
+$$i_t = \sigma(W_i x_t + U_i h_{t-1} + b_i)$$
+
+**3. Candidate Cell State ($\tilde{c}_t$):** Generates new candidate representations:
+
+$$\tilde{c}_t = \tanh(W_c x_t + U_c h_{t-1} + b_c)$$
+
+**4. Cell State Update ($c_t$):** Linear combination of preserved memory and new input:
+
+$$c_t = f_t \odot c_{t-1} + i_t \odot \tilde{c}_t$$
+
+**5. Output Gate ($o_t$):** Determines which portion of the cell state to emit into hidden state:
+
+$$o_t = \sigma(W_o x_t + U_o h_{t-1} + b_o)$$
+
+**6. Hidden State ($h_t$):**
+
+$$h_t = o_t \odot \tanh(c_t)$$
 
 #### Why the LSTM Prevents Vanishing Gradients:
 Observe the gradient flow across cell states:
@@ -143,14 +155,22 @@ Thus, **an un-tuned LSTM initially vanishes gradients just as badly as an RNN!**
 Proposed by Cho et al. (2014), the GRU simplifies the LSTM by merging the cell state and hidden state into a single recurrent vector $h_t$, utilizing only **two gates**:
 
 #### The Governing Equations (PyTorch Standard Formulation):
-1. **Reset Gate ($r_t$):** Determines how much of the past hidden state to ignore when computing candidate state:
-   $$r_t = \sigma(W_r x_t + U_r h_{t-1} + b_r)$$
-2. **Update Gate ($z_t$):** Acts simultaneously as forget and input gate:
-   $$z_t = \sigma(W_z x_t + U_z h_{t-1} + b_z)$$
-3. **Candidate Hidden State ($\tilde{h}_t$):**
-   $$\tilde{h}_t = \tanh(W_h x_t + U_h (r_t \odot h_{t-1}) + b_h)$$
-4. **Hidden State ($h_t$):**
-   $$h_t = (1 - z_t) \odot \tilde{h}_t + z_t \odot h_{t-1}$$
+
+**1. Reset Gate ($r_t$):** Determines how much of the past hidden state to ignore when computing candidate state:
+
+$$r_t = \sigma(W_r x_t + U_r h_{t-1} + b_r)$$
+
+**2. Update Gate ($z_t$):** Acts simultaneously as forget and input gate:
+
+$$z_t = \sigma(W_z x_t + U_z h_{t-1} + b_z)$$
+
+**3. Candidate Hidden State ($\tilde{h}_t$):**
+
+$$\tilde{h}_t = \tanh(W_h x_t + U_h (r_t \odot h_{t-1}) + b_h)$$
+
+**4. Hidden State Update ($h_t$):**
+
+$$h_t = (1 - z_t) \odot \tilde{h}_t + z_t \odot h_{t-1}$$
 
 *(Note: In PyTorch, $z_t$ weights the previous hidden state $h_{t-1}$, so $z_t \approx 1$ represents "retain old memory".)*
 
@@ -288,6 +308,31 @@ Evaluated on **2,307 unseen holdout test samples** (`combined_phishing_dataset_v
 | **LSTM (Retrained MPS)** | **99.7%** | **99.4%** | **99.6%** | **0.9994** | **98.9%** (Robust long-horizon memory) |
 | **GRU (Retrained MPS)** | **99.2%** | **99.6%** | **99.4%** | **0.9996** | **99.5%** (Near-perfect retention) |
 
+### 6.4 Retention Recall Degradation Under Adversarial Filler Words
+To measure whether recurrent memory survives long distractor text (adversarial padding), we injected benign conversational filler words directly after real phishing attacks:
+
+| Architecture | 0 Filler Words | 25 Words | 50 Words | 100 Words | 200 Words | 300 Words |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Vanilla RNN** | 71.2% | 63.4% | 51.0% | 45.2% | 43.1% | 42.1% (Collapse) |
+| **LSTM (MPS)** | **99.4%** | **99.1%** | **99.2%** | **98.9%** | **99.0%** | **98.9%** (Stable) |
+| **GRU (MPS)** | **99.6%** | **99.4%** | **99.5%** | **99.6%** | **99.5%** | **99.5%** (Stable) |
+
+*Key Finding:* Vanilla RNN memory collapses to chance level within 50–100 filler words. Gated networks (LSTM and GRU) preserve the opening threat signal across 300+ words with under 0.5% attenuation.
+
+### 6.5 Neuron Saturation Analysis (Exp. 4b)
+Percentage of hidden neurons trapped in extreme saturation ($|h| > 0.9$ where derivative $1 - h^2 \approx 0$):
+* **Vanilla RNN:** **15.7%** of hidden units permanently saturated (explains why gradients vanish).
+* **LSTM:** **0.1%** saturated (cell state $c_t$ buffers activations away from saturation).
+* **GRU:** **0.3%** saturated.
+
+### 6.6 Customer Dispute False-Positive Resolution Benchmark
+Tested on real customer fraud dispute grievance emails vs. credential-harvesting phishing lures:
+
+| Message Type | Real-World Content Archetype | Model Raw Score | Hybrid Rule Check | Final Risk Score | Final System Verdict |
+| :--- | :--- | :---: | :--- | :---: | :---: |
+| **Customer Dispute Ticket** | *"Urgent: Unauthorized Fraudulent Transaction on my account... Please freeze card and investigate."* | 0.1% | Account holder voice verified, 0 attack vectors | **0.1 / 100** | **Legitimate [0]** ✅ |
+| **Phishing Coercion Scam** | *"URGENT: Your account suspended due to unauthorized login. Click here to verify within 24 hours."* | 100.0% | Threat vector: click request, credential demand | **100.0 / 100** | **Fraud / Malicious [1]** ✅ |
+
 ---
 
 ## 7. Existing Systems & How PhishGuard AI Compares
@@ -325,10 +370,30 @@ When questioned by examiners, demonstrate high academic maturity by proactively 
 ## 9. Comprehensive Viva Voce Q&A (Examiner Prep)
 
 #### Q1: What is the Vanishing Gradient Problem, and what causes it mathematically?
-> **Answer:** When training recurrent networks using Backpropagation Through Time (BPTT), the gradient of the loss at step $T$ with respect to the hidden state at step $t$ involves repeated multiplication of the Jacobian matrix $\frac{\partial h_k}{\partial h_{k-1}} = \text{diag}(1 - h_k^2) W_{hh}^T$. If the spectral norm of $W_{hh}$ and the tanh derivative are less than 1, the gradient decays exponentially as $(T - t)$ increases. Early timesteps receive virtually zero gradient updates, rendering the network unable to learn long-range temporal dependencies.
+**Answer:** When training recurrent networks using Backpropagation Through Time (BPTT), the gradient of the loss at step $T$ with respect to the hidden state at step $t$ involves repeated multiplication of the single-step Jacobian matrix:
+
+$$\frac{\partial h_k}{\partial h_{k-1}} = \text{diag}\left(1 - h_k^2\right) W_{hh}^T$$
+
+If the spectral norm of $W_{hh}$ and the tanh derivative are less than 1, the gradient decays exponentially as $(T - t)$ increases:
+
+$$\left\|\frac{\partial h_T}{\partial h_t}\right\| \le \left(\gamma \cdot \sigma_{\max}(W_{hh})\right)^{T-t}$$
+
+Early timesteps receive virtually zero gradient updates, rendering the network unable to learn long-range temporal dependencies.
 
 #### Q2: How does the LSTM architecture solve vanishing gradients?
-> **Answer:** The LSTM introduces a separate **Cell State ($c_t$)** that updates additively rather than through matrix multiplication: $c_t = f_t \odot c_{t-1} + i_t \odot \tilde{c}_t$. The derivative $\frac{\partial c_t}{\partial c_{t-1}} = f_t$ contains **no weight matrix $W$ and no saturating $\tanh$ derivative**. When the forget gate $f_t \approx 1$, gradients flow backward across time without exponential attenuation. This path is known as the *Constant Error Carousel*.
+**Answer:** The LSTM introduces a separate **Cell State** ($c_t$) that updates additively rather than through matrix multiplication:
+
+$$c_t = f_t \odot c_{t-1} + i_t \odot \tilde{c}_t$$
+
+Taking the temporal derivative across consecutive cell states yields:
+
+$$\frac{\partial c_t}{\partial c_{t-1}} = \text{diag}(f_t)$$
+
+Notice that this path contains **no weight matrix $W$ and no saturating $\tanh$ derivative**. When the forget gate $f_t \approx 1$, gradients flow backward across time without exponential attenuation:
+
+$$\frac{\partial \mathcal{L}}{\partial c_t} = \frac{\partial \mathcal{L}}{\partial c_T} \prod_{k=t+1}^{T} f_k \approx \frac{\partial \mathcal{L}}{\partial c_T}$$
+
+This linear additive memory highway is known as the **Constant Error Carousel**.
 
 #### Q3: What is the "Forget-Gate Bias Initialisation Catch"?
 > **Answer:** By default, neural network biases are initialized to 0. Since $\sigma(0) = 0.5$, an LSTM starts with forget gates that halve memory at every step ($0.5^{50} \approx 10^{-15}$). Consequently, an untrained default LSTM vanishes gradients just like an RNN! Setting the initial forget bias $b_f = 2.0$ ensures $\sigma(2) \approx 0.88$, keeping the memory highway open from the start of training (Jozefowicz et al., 2015).
