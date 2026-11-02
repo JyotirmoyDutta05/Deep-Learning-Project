@@ -17,7 +17,7 @@ from phishguard.service import Predictor  # noqa: E402
 from phishguard.signals import LABELS as AV_LABELS  # noqa: E402
 from phishguard.text import tokenize  # noqa: E402
 
-st.set_page_config(page_title="PhishSense AI", page_icon="🛡️", layout="wide")
+st.set_page_config(page_title="PhishGuard AI", page_icon="🛡️", layout="wide")
 
 EXAMPLES = {
     "Bank SMS": ("sms", "URGENT: Your HDFC Bank account has been suspended due to incomplete KYC. Verify now at http://hdfc-kyc-secure.example-login.com or your account will be blocked within 24 hours."),
@@ -147,7 +147,7 @@ def score_rows(P: Predictor, texts: list[str]) -> list[dict | None]:
 
 
 # ---------------------------------------------------------------- sidebar
-st.sidebar.title("PhishSense AI")
+st.sidebar.title("PhishGuard AI")
 found = sorted(str(p.relative_to(ROOT)) for p in ROOT.glob("artifacts/*/model.pt"))
 env = os.environ.get("PHISHGUARD_MODEL")
 if env and env not in found:
@@ -165,7 +165,7 @@ st.sidebar.markdown(f"**Reads up to:** {P.cfg.max_len} tokens")
 channel = st.sidebar.radio("Message type", ["sms", "email", "transaction"], format_func=str.capitalize)
 st.sidebar.caption("Messages are scored locally and are not stored.")
 
-st.title("PhishSense AI: Phishing & Fraud Prevention")
+st.title("PhishGuard AI: Phishing & Fraud Prevention")
 tab_a, tab_m, tab_b, tab_r = st.tabs(["Check a message", "Memory stress test", "Scan a batch", "Model report"])
 
 # ---------------------------------------------------------------- tab: analyze

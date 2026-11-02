@@ -36,7 +36,7 @@ def create_app(model_path: str | None = None) -> FastAPI:
         app.state.predictor = Predictor(path) if Path(path).exists() else None
         yield
 
-    app = FastAPI(title="PhishSense AI", version=__version__, lifespan=lifespan)
+    app = FastAPI(title="PhishGuard AI", version=__version__, lifespan=lifespan)
 
     def predictor() -> Predictor:
         p = app.state.predictor

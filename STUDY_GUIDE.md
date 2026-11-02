@@ -1,4 +1,4 @@
-# Comprehensive Study Guide & Viva Dossier: PhishSense AI
+# Comprehensive Study Guide & Viva Dossier: PhishGuard AI
 ## Real-Time Phishing & Digital Fraud Prevention using Deep Gated Recurrent Networks (LSTM & GRU) with Explainable Gate Telemetry and Multi-Modal Document OCR
 
 > **Target Audience:** Project group members, external evaluators, viva examiners, and deep learning researchers.  
@@ -11,8 +11,8 @@
 | Academic Field | Specification |
 | :--- | :--- |
 | **Domain** | Cybersecurity / Financial Threat Intelligence & Natural Language Processing (NLP) |
-| **Project Topic** | **PhishSense AI: Real-Time Phishing & Digital Fraud Prevention using Deep Gated Recurrent Networks** |
-| **Application Name** | **PhishSense AI** |
+| **Project Topic** | **PhishGuard AI: Real-Time Phishing & Digital Fraud Prevention using Deep Gated Recurrent Networks** |
+| **Application Name** | **PhishGuard AI** |
 | **Primary DL Architectures** | Vanilla Recurrent Neural Networks (RNN), Long Short-Term Memory (LSTM), Gated Recurrent Units (GRU) |
 | **Interpretability Paradigm** | Mechanistic Gate Telemetry & Linear Contribution Attribution (XAI) |
 | **Input Modalities** | Raw Text Sequences (Email body, SMS, Banking transactions), Document Attachments (PDF invoices, DOCX), and Screenshot Images (Tesseract OCR v5.5) |
@@ -34,7 +34,7 @@ We selected **Financial Fraud, Smishing, and Phishing Sequence Detection** for t
 1. **Investigate Recurrent Memory & Vanishing Gradients:** Empirically demonstrate how and why Vanilla RNNs fail over long temporal sequences due to the mathematical breakdown of Backpropagation Through Time (BPTT).
 2. **Validate Gated Mitigations:** Prove mathematically and experimentally how LSTM and GRU architectures mitigate vanishing gradients—and expose the critical catch that **gates require proper bias conditioning ($b_f = 2.0$)** to prevent early memory collapse.
 3. **Build an End-to-End Explainable System:** Move beyond offline Jupyter notebooks by providing a fully functional, local, sub-10ms inference engine that outputs token-by-token gate activity ($f_t, i_t, z_t$) and memory survival metrics.
-4. **Counter Evasion via Document & Screenshot OCR:** Attackers frequently place fraud lures inside attached PDF invoices or screenshot images to bypass plain-text email filters. PhishSense AI integrates Tesseract OCR and PDF parsing to close this security loophole.
+4. **Counter Evasion via Document & Screenshot OCR:** Attackers frequently place fraud lures inside attached PDF invoices or screenshot images to bypass plain-text email filters. PhishGuard AI integrates Tesseract OCR and PDF parsing to close this security loophole.
 
 ---
 
@@ -192,7 +192,7 @@ In recurrent classification, sequence length varies across batches. We pad seque
 ---
 
 ### 3.6 Explainable AI (XAI) & Gate Telemetry Attribution
-PhishSense AI does not treat the recurrent network as an opaque black box. We extract mechanistic explanations via internal gate logging:
+PhishGuard AI does not treat the recurrent network as an opaque black box. We extract mechanistic explanations via internal gate logging:
 1. **Write Gate ($i_t$ or $1 - z_t$):** Measures the magnitude of new information the cell accepted when reading word $t$.
 2. **Keep Gate ($f_t$ or $z_t$):** Measures the unit-averaged retention gate at step $t$.
 3. **Cumulative Survival Metric:**
@@ -335,9 +335,9 @@ Tested on real customer fraud dispute grievance emails vs. credential-harvesting
 
 ---
 
-## 7. Existing Systems & How PhishSense AI Compares
+## 7. Existing Systems & How PhishGuard AI Compares
 
-| Security Dimension | Existing Approach 1: Regex & Keyword Blacklists | Existing Approach 2: Protocol Headers (SPF/DKIM/DMARC) | Existing Approach 3: Cloud LLMs (GPT-4 / Claude) | **Our System: PhishSense AI (Gated RNNs + OCR)** |
+| Security Dimension | Existing Approach 1: Regex & Keyword Blacklists | Existing Approach 2: Protocol Headers (SPF/DKIM/DMARC) | Existing Approach 3: Cloud LLMs (GPT-4 / Claude) | **Our System: PhishGuard AI (Gated RNNs + OCR)** |
 | :--- | :--- | :--- | :--- | :--- |
 | **Detection Principle** | Exact string matching (`"account suspended"`) | DNS cryptographic sender verification | Massive Transformer auto-regression | Recurrent gate telemetry + sequence modeling |
 | **Weakness** | Trivially bypassed by synonyms, typos, leetspeak | Blind to lookalike domains (`hdfc-kyc.com`) or compromised accounts | High cost, 1–2 sec latency, privacy risks sending data to 3rd party | Requires periodic retraining on novel cyber-slang |
@@ -405,9 +405,9 @@ This linear additive memory highway is known as the **Constant Error Carousel**.
 > **Answer:** 
 > 1. **Resource Efficiency:** Our model has $\sim 100\text{K}$ parameters and runs sub-5ms inference on standard CPUs, making it ideal for edge gateways, mobile devices, and local firewalls.
 > 2. **Mechanistic Explainability:** Recurrent gates ($f_t, i_t, z_t$) provide direct, deterministic telemetry into information storage and retention. In contrast, Transformer self-attention maps are quadratically expensive and attention weights do not represent faithful causal explanations.
-> 3. **Privacy:** PhishSense AI operates 100% locally with zero cloud API dependencies, ensuring confidential emails and banking alerts are never exposed to third-party servers.
+> 3. **Privacy:** PhishGuard AI operates 100% locally with zero cloud API dependencies, ensuring confidential emails and banking alerts are never exposed to third-party servers.
 
-#### Q6: How does PhishSense AI detect phishing inside attachments?
+#### Q6: How does PhishGuard AI detect phishing inside attachments?
 > **Answer:** Attackers frequently place phishing lures inside PDF invoices or screenshot images to bypass text-based NLP filters. We built an automated ingestion layer using **Tesseract OCR (v5.5)** for image screenshots (`.png`, `.jpg`) and **PyMuPDF (`fitz`)** for PDF documents. The extracted text is normalized and piped into the recurrent inference service, achieving seamless cross-modal threat detection.
 
 ---
@@ -435,7 +435,7 @@ This linear additive memory highway is known as the **Constant Error Carousel**.
 
 ## 11. Streamlit Dashboard Architecture & Visual Features Guide
 
-The **PhishSense AI** Streamlit dashboard (`dashboard/app.py`) is structured into distinct interactive modules:
+The **PhishGuard AI** Streamlit dashboard (`dashboard/app.py`) is structured into distinct interactive modules:
 
 ### 11.1 The Persistent Sidebar (Controls & Telemetry)
 * **Model Dropdown:** Allows real-time switching between trained model checkpoints (`artifacts/lstm/model.pt` vs. `artifacts/gru/model.pt`). Automatically detects files on disk and refreshes when model weights are updated.
