@@ -207,27 +207,40 @@ Our research utilizes both synthetic benchmarks and real-world multi-corpus fina
 * **Chance Level:** $\frac{1}{8} = 12.5\%$.
 * **Evaluated Horizons:** $T \in \{10, 25, 50, 100\}$.
 
-### 4.2 Unified Multi-Source Financial Threat Corpus (`combined_phishing_dataset.csv`)
-* **Total Volume:** **20,052 unique real-world samples** (54.7% legitimate / 45.3% malicious).
+### 4.2 Unified Multi-Source Financial Threat Corpus (`combined_phishing_dataset_v2.csv`)
+* **Total Volume:** **23,052 unique real-world samples** (54.1% legitimate / 45.9% malicious).
 * **Sub-Corpora Integrated:**
   1. `data/phishing_legit_dataset_KD_10000.csv`: 10,000 modern email samples (6,000 phishing lures, 4,000 legitimate enterprise emails).
   2. `data/sms_spam.tsv` / UCI `SMSSpamCollection`: 5,574 SMS and smishing messages containing financial prize scams, shortlinks, and urgent bank alerts.
   3. `data/archive/`: Curated cybersecurity corpora including Nazario Phishing, CEAS 2008, SpamAssassin, Enron Financial, and Nigerian Advance-Fee Fraud.
-* **Preprocessing Pipeline:**
+  4. `data/hard_examples.csv`: 3,000 contrastive hard examples (dispute tickets, legitimate card freeze notices, bank dispute resolutions) sharing high-risk fraud vocabulary (`unauthorized`, `fraudulent`, `account`, `stolen`) to eliminate false positives.
+* **Preprocessing & Tokenization Pipeline:**
   * Alphanumeric tokenization preserving URL protocols (`http`, `https`), domain structures, and currency symbols (`$`, `₹`, `£`).
-  * Vocabulary construction with frequency clipping: **22,191 unique tokens**.
-  * Stratified 80/10/10 split (Train: 16,042, Val: 2,003, Test: 2,007).
+  * Normalization: URLs mapped to `<url>`, emails to `<email>`, numbers to `<numK>` (where $K$ is digit count, separating OTPs, phone numbers, and amounts).
+  * Vocabulary construction with frequency clipping: **22,000+ unique tokens**.
+* **Dataset Splits (Stratified 80 / 10 / 10):**
+  * **Training Set (80%):** **18,441 samples** (used for gradient updates and backpropagation).
+  * **Validation Set (10%):** **2,304 samples** (used for early stopping patience and temperature scaling calibration).
+  * **Test Set (10% Holdout):** **2,307 samples** (unseen evaluation data used for final performance reporting).
+
+### 4.3 Dataset Consistency Across Models
+* **Does every model have the exact same dataset split?**
+  **Yes, 100% identical.** Both LSTM and GRU training in `train.py` use a fixed global random seed (`seed = 42`). The permutation and stratified partition indices are identical. Every model trains on the exact same 18,441 samples, validates on the exact same 2,304 samples, and is evaluated on the exact same 2,307 holdout test samples. This guarantees scientific rigor and eliminates data bias in comparative benchmarks.
+* **Is every model doing the same thing?**
+  **Yes.** Both LSTM and GRU perform the exact same task: binary threat classification (`[1] Fraud/Malicious` vs `[0] Legitimate`), emitting a calibrated risk score (`0–100`), and providing token-level gate telemetry. The only difference is their internal recurrent cell mathematics:
+  * **LSTM:** Uses 3 multiplicative gates ($f_t, i_t, o_t$) and a separate additive **Cell State ($c_t$)**.
+  * **GRU:** Uses 2 multiplicative gates ($r_t, z_t$) and merges the cell state into the recurrent hidden state ($h_t$).
 
 ---
 
 ## 5. Models Evaluated & Architecture Details
 
 All models were evaluated under identical training conditions:
-* **Embedding Layer:** $22,191 \to 128$ dimensions (learned from scratch, no pre-trained weights).
+* **Embedding Layer:** $22,000+ \to 128$ dimensions (learned from scratch, no pre-trained weights).
 * **Hidden State Size:** $128$ recurrent units.
-* **Optimizer:** Adam ($\alpha = 0.001$, $\beta_1 = 0.9, \beta_2 = 0.999$).
+* **Optimizer:** AdamW ($\alpha = 0.002$, weight decay $= 10^{-2}$).
 * **Batch Size:** 64.
-* **Regularization:** Dropout $p = 0.3$, Gradient Clipping $\|g\|_2 \le 1.0$.
+* **Regularization:** Dropout $p = 0.3$, Word Dropout $= 0.05$, Gradient Clipping $\|g\|_2 \le 1.0$.
 * **Calibration:** Temperature Scaling ($T_{\text{temp}}$) optimized via Negative Log-Likelihood on validation sets.
 
 ### 5.1 The Five Model Variants
@@ -267,13 +280,13 @@ Measuring the backpropagated gradient norm $\|\partial \mathcal{L} / \partial h_
 
 ### 6.3 Real-World Phishing & Fraud Classification Performance
 
-Evaluated on 2,007 unseen holdout test samples:
+Evaluated on **2,307 unseen holdout test samples** (`combined_phishing_dataset_v2.csv`):
 
 | Architecture | Precision | Recall | F1-Score | ROC-AUC | Retention @ 300 Filler Words |
 | :--- | :---: | :---: | :---: | :---: | :---: |
 | **Vanilla RNN** | 82.4% | 71.2% | 76.4% | 0.841 | 42.1% (Catastrophic forgetting) |
-| **LSTM** | **99.6%** | **98.4%** | **98.9%** | **0.9993** | **98.2%** (Stable memory retention) |
-| **GRU** | **99.9%** | **99.1%** | **99.5%** | **0.9999** | **99.3%** (Near-perfect retention) |
+| **LSTM (Retrained MPS)** | **99.7%** | **99.4%** | **99.6%** | **0.9994** | **98.9%** (Robust long-horizon memory) |
+| **GRU (Retrained MPS)** | **99.2%** | **99.6%** | **99.4%** | **0.9996** | **99.5%** (Near-perfect retention) |
 
 ---
 
@@ -334,7 +347,75 @@ When questioned by examiners, demonstrate high academic maturity by proactively 
 
 ---
 
-## 10. Execution Quick-Reference
+## 10. File Architecture & Codebase Map (What Each File Does)
+
+| File / Component | Architectural Role | Core Responsibility |
+| :--- | :--- | :--- |
+| [`STUDY_GUIDE.md`](file:///Users/jyotirmoy/Desktop/test/STUDY_GUIDE.md) | Academic Dossier | Complete viva preparation guide, mathematical derivations, architecture proofs, and project defense notes. |
+| [`rnn_lstm_gru_project.py`](file:///Users/jyotirmoy/Desktop/test/rnn_lstm_gru_project.py) | Scientific Benchmark Script | Standalone research benchmark; mathematically isolates vanishing gradients, unrolls BPTT Jacobian products, measures tanh neuron saturation, and benchmarks synthetic recall across $T \in \{10, 25, 50, 100\}$. |
+| `data/combined_phishing_dataset_v2.csv` | Unified Training Corpus | 23,052 balanced samples combining SMS spam, Enron/Nazario emails, and contrastive hard dispute pairs. |
+| `data/hard_examples.csv` | Hard-Negative Pair Corpus | 3,000 contrastive dispute tickets, stolen card reports, and legitimate bank notices sharing fraud keywords. |
+| [`phishguard-ai/phishguard/config.py`](file:///Users/jyotirmoy/Desktop/test/phishguard-ai/phishguard/config.py) | Model Hyperparameters | Defines `ModelConfig` dataclass (vocab size, embedding dim 128, hidden units 128, sequence max length 400). |
+| [`phishguard-ai/phishguard/text.py`](file:///Users/jyotirmoy/Desktop/test/phishguard-ai/phishguard/text.py) | Preprocessing & Tokenizer | Regex alphanumeric tokenizer, entity normalizer (URLs $\to$ `<url>`, emails $\to$ `<email>`, numbers $\to$ `<numK>`), and frequency-clipped vocabulary builder. |
+| [`phishguard-ai/phishguard/model.py`](file:///Users/jyotirmoy/Desktop/test/phishguard-ai/phishguard/model.py) | Recurrent Architecture | `GateRNN` wrapping PyTorch LSTM and GRU cells with a custom unrolled `.trace()` method for token-level gate telemetry. |
+| [`phishguard-ai/phishguard/explain.py`](file:///Users/jyotirmoy/Desktop/test/phishguard-ai/phishguard/explain.py) | Mechanistic Interpretability | Computes first-order logit attributions $\Delta z_t$ and cumulative memory survival metrics $\prod f_t$. |
+| [`phishguard-ai/phishguard/signals.py`](file:///Users/jyotirmoy/Desktop/test/phishguard-ai/phishguard/signals.py) | Attack-Vector Verifier | Rule-verification layer detecting physical exploitation vectors (links, credentials, deadline threats) vs. customer reporting voice. |
+| [`phishguard-ai/phishguard/extract.py`](file:///Users/jyotirmoy/Desktop/test/phishguard-ai/phishguard/extract.py) | Document & OCR Ingestion | Extracts text from screenshots (`.png`, `.jpg`) using Tesseract OCR v5.5 and parses `.pdf` / `.docx` invoice attachments via PyMuPDF. |
+| [`phishguard-ai/phishguard/service.py`](file:///Users/jyotirmoy/Desktop/test/phishguard-ai/phishguard/service.py) | Inference Service | Top-level coordinator that accepts raw text or documents, unrolls gate telemetry, and formats predictions. |
+| [`phishguard-ai/phishguard/train.py`](file:///Users/jyotirmoy/Desktop/test/phishguard-ai/phishguard/train.py) | Training Pipeline | Automatic Apple Silicon M4 GPU (`MPS`) training pipeline, AdamW optimization, adversarial filler augmentation, and calibration. |
+| [`phishguard-ai/phishguard/api.py`](file:///Users/jyotirmoy/Desktop/test/phishguard-ai/phishguard/api.py) | Headless REST API | FastAPI web service with endpoints `/healthz`, `/v1/model`, `/v1/analyze`, and `/v1/analyze/file`. |
+| [`phishguard-ai/dashboard/app.py`](file:///Users/jyotirmoy/Desktop/test/phishguard-ai/dashboard/app.py) | Streamlit Dashboard | Interactive multi-tab web user interface for real-time inference, OCR drag-and-drop, gate heatmaps, and adversarial stress tests. |
+
+---
+
+## 11. Streamlit Dashboard Architecture & Visual Features Guide
+
+The **PhishGuard AI** Streamlit dashboard (`dashboard/app.py`) is structured into distinct interactive modules:
+
+### 11.1 The Persistent Sidebar (Controls & Telemetry)
+* **Model Dropdown:** Allows real-time switching between trained model checkpoints (`artifacts/lstm/model.pt` vs. `artifacts/gru/model.pt`). Automatically detects files on disk and refreshes when model weights are updated.
+* **Architecture Specs:** Shows the loaded recurrent cell (`LSTM` or `GRU`), hidden unit dimension ($128$), and sequence horizon ($400$ tokens).
+* **Calibrated Decision Line:** Displays the optimal threshold (e.g., $34/100$ for LSTM or $46/100$ for GRU) derived from validation PR-curve tuning.
+* **Message Type Selector:** Radio toggle allowing analysts to classify the incoming modality as `SMS`, `Email`, or `Banking Transaction`.
+
+### 11.2 Tab 1: "Check a Message" (Live Inference & XAI Gate Telemetry)
+* **Pre-Loaded Threat Archetypes:** 5 quick-load buttons (`Bank SMS`, `Prize SMS`, `Phishing email`, `Transaction`, `Friendly note`) to demonstrate instant threat reactions.
+* **Attachment & Screenshot OCR Expander (`📎`):**
+  * Drag-and-drop file uploader supporting `.pdf`, `.docx`, `.png`, `.jpg`, `.jpeg`, `.eml`.
+  * Automatically routes images to Tesseract OCR and documents to PyMuPDF, providing a *"Load into text box"* button for immediate gate analysis.
+* **Verdict & Risk Cards:**
+  * **Threat Flag Banner:** Bright Crimson `Fraud / Malicious [1]` or Emerald Blue `Legitimate [0]`.
+  * **Risk Score Metric:** Calibrated percentage score (`0–100 / 100`) accompanied by a dynamic progress bar and Risk Band (`Low`, `Medium`, `High`, `Critical`).
+* **Attack-Vector Verification Panel:**
+  * Explicitly highlights whether concrete malicious vectors were found (e.g., `Link to an external site`, `Asks for password / OTP`, `Threat with a deadline`).
+  * Displays account holder indicators (*"Written by the account holder"*, *"Safe bank wording"*).
+* **Token-Level Gate Telemetry Heatmap:**
+  * Visualizes the exact word sequence with glowing colored token pills:
+    * **Crimson Red:** Tokens pushing strongly toward Fraud (e.g., `unauthorized`, `suspended`, `verify`, `click`).
+    * **Blue:** Tokens pushing toward Legitimate.
+    * **Teal Intensity:** Shows internal gate activation strength ($f_t, i_t, z_t$).
+  * **Hover Tooltip:** Hovering over any word reveals its exact numeric contribution, input write gate, keep gate, and survival probability.
+* **Dual Altair Diagnostic Charts:**
+  * **Left Chart (Token Evidence Bar Chart):** Plots token position vs. directional logit evidence ($\Delta z_t$). Red bars push the probability toward fraud; blue bars pull it back toward legitimate.
+  * **Right Chart (Gate Dynamics Line Chart):** Traces three temporal curves across the message:
+    * **Yellow Line (`write`):** Input gate activity ($i_t$), showing where new information was written.
+    * **Blue Line (`keep`):** Retention gate ($f_t$ or $z_t$), showing how much memory was preserved.
+    * **Teal Curve (`survival`):** Cumulative survival metric $\prod f_k$, proving how much of an opening token's memory physically reached the classification step.
+
+### 11.3 Tab 2: "Memory Stress Test" (Adversarial Degradation Probe)
+* Takes any suspicious email or SMS and allows the user to append between **50 and 350 filler words** of harmless conversational text after the message.
+* Evaluates whether the recurrent gates maintain the threat flag across long distances or suffer from memory decay.
+
+### 11.4 Tab 3: "Scan a Batch" (SOC Ingestion)
+* Ingests CSV or text files containing up to 100 messages at once.
+* Employs chunked GPU batch inference and produces an exportable tabular report with risk scores and detected cues.
+
+### 11.5 Tab 4: "Model Report" (Validation Metrics)
+* Automatically parses `metrics.json` and renders holdout test ROC-AUC, PR-AUC, Precision, Recall, and the retention recall decay table across 0 to 300 filler words.
+
+---
+
+## 12. Execution Quick-Reference
 
 ### Standalone Benchmark & Verification Script:
 ```bash
