@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from phishguard.extract import extract_text_from_file  # noqa: E402
 from phishguard.service import Predictor  # noqa: E402
+from phishguard.signals import LABELS as AV_LABELS  # noqa: E402
 from phishguard.text import tokenize  # noqa: E402
 
 st.set_page_config(page_title="PhishGuard AI", page_icon="🛡️", layout="wide")
@@ -221,6 +222,22 @@ with tab_a:
         v2.metric("Risk score", f"{res['risk_score']:.0f}/100")
         v3.progress(min(res["risk_score"] / 100, 1.0), text=f"Risk level: {res['risk_band']} (decision line {res['threshold']:.0f})")
         st.caption(f"{res['n_tokens']} tokens read in {res['latency_ms']} ms" + (". Long input: only the first tokens were read." if res["truncated"] else ""))
+
+        st.markdown("**Attack-vector check** (does the message ask you to do something dangerous?)")
+        av = res.get("attack_vectors", [])
+        a1, a2 = st.columns([3, 2])
+        if av:
+            a1.error("Found: " + " · ".join(AV_LABELS.get(v, v) for v in av))
+        else:
+            a1.success("None found: no suspicious link, no request for password / OTP / card details, no payment demand, no deadline threat.")
+        tags = [t for t, on in (("Written by the account holder", res.get("reporter_voice")),
+                                ("Safe bank wording (\"we never ask for OTP\")", res.get("safe_bank_language"))) if on]
+        a2.markdown(f"Neural model score: **{res.get('model_score', res['risk_score']):.0f}/100**" +
+                    ("".join(f"<br>• {t}" for t in tags)), unsafe_allow_html=True)
+        if res.get("rule_note"):
+            st.warning(f"Final risk lowered from {res['model_score']:.0f} to {res['risk_score']:.0f}: the message talks about fraud "
+                       "but contains no attack vector and reads as a report or a genuine bank notice.")
+
         st.info(memory_note(res))
         cues = sorted({CUE_LABELS[c["category"]] for c in res["cues"]})
         if cues:

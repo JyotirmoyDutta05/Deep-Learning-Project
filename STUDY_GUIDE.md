@@ -66,15 +66,15 @@ $$\frac{\partial \mathcal{L}}{\partial h_t} = \frac{\partial \mathcal{L}}{\parti
 
 Now, evaluate the single-step Jacobian matrix $\frac{\partial h_k}{\partial h_{k-1}}$:
 
-$$\frac{\partial h_k}{\partial h_{k-1}} = \operatorname{diag}\left(1 - h_k^2\right) W_{hh}^T$$
+$$\frac{\partial h_k}{\partial h_{k-1}} = \text{diag}\left(1 - h_k^2\right) W_{hh}^T$$
 
 Substituting this into the chain product yields:
 
-$$\frac{\partial h_T}{\partial h_t} = \prod_{k=t+1}^{T} \operatorname{diag}\left(1 - h_k^2\right) W_{hh}^T$$
+$$\frac{\partial h_T}{\partial h_t} = \prod_{k=t+1}^{T} \text{diag}\left(1 - h_k^2\right) W_{hh}^T$$
 
 Applying matrix norm bounds:
 
-$$\left\|\frac{\partial h_T}{\partial h_t}\right\| \le \prod_{k=t+1}^{T} \left\|\operatorname{diag}\left(1 - h_k^2\right)\right\| \cdot \left\|W_{hh}^T\right\| \le \left(\gamma \cdot \sigma_{\max}(W_{hh})\right)^{T-t}$$
+$$\left\|\frac{\partial h_T}{\partial h_t}\right\| \le \prod_{k=t+1}^{T} \left\|\text{diag}\left(1 - h_k^2\right)\right\| \cdot \left\|W_{hh}^T\right\| \le \left(\gamma \cdot \sigma_{\max}(W_{hh})\right)^{T-t}$$
 
 Where $\gamma = \max_k (1 - h_k^2) \le 1$, and $\sigma_{\max}(W_{hh})$ is the largest singular value (spectral norm) of $W_{hh}$.
 
@@ -119,7 +119,7 @@ To solve the vanishing gradient problem, Hochreiter & Schmidhuber (1997) introdu
 #### Why the LSTM Prevents Vanishing Gradients:
 Observe the gradient flow across cell states:
 
-$$\frac{\partial c_t}{\partial c_{t-1}} = \operatorname{diag}(f_t)$$
+$$\frac{\partial c_t}{\partial c_{t-1}} = \text{diag}(f_t)$$
 
 Notice that **there is no weight matrix multiplication $W$ and no non-linear $\tanh$ derivative** along the $\frac{\partial c_t}{\partial c_{t-1}}$ path! If the forget gate is saturated near $1$ ($f_t \approx 1.0$), the gradient flows backward across hundreds of steps **completely un-attenuated**:
 
@@ -312,7 +312,7 @@ When questioned by examiners, demonstrate high academic maturity by proactively 
 ## 9. Comprehensive Viva Voce Q&A (Examiner Prep)
 
 #### Q1: What is the Vanishing Gradient Problem, and what causes it mathematically?
-> **Answer:** When training recurrent networks using Backpropagation Through Time (BPTT), the gradient of the loss at step $T$ with respect to the hidden state at step $t$ involves repeated multiplication of the Jacobian matrix $\frac{\partial h_k}{\partial h_{k-1}} = \operatorname{diag}(1 - h_k^2) W_{hh}^T$. If the spectral norm of $W_{hh}$ and the tanh derivative are less than 1, the gradient decays exponentially as $(T - t)$ increases. Early timesteps receive virtually zero gradient updates, rendering the network unable to learn long-range temporal dependencies.
+> **Answer:** When training recurrent networks using Backpropagation Through Time (BPTT), the gradient of the loss at step $T$ with respect to the hidden state at step $t$ involves repeated multiplication of the Jacobian matrix $\frac{\partial h_k}{\partial h_{k-1}} = \text{diag}(1 - h_k^2) W_{hh}^T$. If the spectral norm of $W_{hh}$ and the tanh derivative are less than 1, the gradient decays exponentially as $(T - t)$ increases. Early timesteps receive virtually zero gradient updates, rendering the network unable to learn long-range temporal dependencies.
 
 #### Q2: How does the LSTM architecture solve vanishing gradients?
 > **Answer:** The LSTM introduces a separate **Cell State ($c_t$)** that updates additively rather than through matrix multiplication: $c_t = f_t \odot c_{t-1} + i_t \odot \tilde{c}_t$. The derivative $\frac{\partial c_t}{\partial c_{t-1}} = f_t$ contains **no weight matrix $W$ and no saturating $\tanh$ derivative**. When the forget gate $f_t \approx 1$, gradients flow backward across time without exponential attenuation. This path is known as the *Constant Error Carousel*.

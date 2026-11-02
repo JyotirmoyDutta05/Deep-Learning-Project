@@ -5,6 +5,7 @@ import time
 
 import torch
 
+from . import signals
 from .config import ModelConfig
 from .explain import attribute, memory_summary
 from .model import GateRNN
@@ -51,10 +52,13 @@ class Predictor:
         x = torch.tensor([ids], device=self.device)
         lengths = torch.tensor([len(ids)])
         logits, gates = self.model.trace(x, lengths)
-        p = torch.sigmoid(logits / self.temperature).item()
+        p_model = torch.sigmoid(logits / self.temperature).item()
+        sig = signals.check(text)
+        p, rule_note = signals.combine(p_model, self.threshold, sig)
         label = int(p >= self.threshold)
         out = {"label": label, "verdict": "fraud" if label else "legitimate",
                "risk_score": round(p * 100, 1), "risk_band": risk_band(p, self.threshold),
+               "model_score": round(p_model * 100, 1), "rule_note": rule_note, **sig,
                "threshold": round(self.threshold * 100, 1), "n_tokens": len(ids),
                "truncated": truncated, "model": self.cfg.cell}
         if explain:

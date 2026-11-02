@@ -92,10 +92,20 @@ def main(argv=None):
     ap.add_argument("--word-dropout", type=float, default=0.05)
     ap.add_argument("--patience", type=int, default=3)
     ap.add_argument("--seed", type=int, default=42)
+    ap.add_argument("--device", default="auto", help="Device: auto, mps, cuda, cpu")
     a = ap.parse_args(argv)
 
     set_seed(a.seed)
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    if a.device == "auto":
+        if torch.cuda.is_available():
+            device = "cuda"
+        elif torch.backends.mps.is_available():
+            device = "mps"
+        else:
+            device = "cpu"
+    else:
+        device = a.device
+    print(f"Using training accelerator: {device.upper()}")
     texts, y = load_texts(a.dataset, a.text_col, a.label_col, a.seed)
     tr, va, te = stratified_split(y, a.seed)
     T = lambda idx: [texts[i] for i in idx]
